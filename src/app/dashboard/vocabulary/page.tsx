@@ -4,18 +4,19 @@ import { useEffect, useState } from "react";
 import PersonalVocabularyList from "@/components/PersonalVocabularyList";
 import { getSavedWords } from "@/actions/word";
 import { removeWord } from "@/actions/user";
+import { IWord } from "@/types";
 
 export default function VocabularyPage() {
-  const [words, setWords] = useState<any[]>([]);
+  const [words, setWords] = useState<IWord[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchWords = async () => {
       const result = await getSavedWords();
-      if (result.success) {
+      if (result.success && result.words) {
         setWords(result.words);
       } else {
-        setError(result.error);
+        setError(result.error || "Failed to fetch words");
       }
     };
 
@@ -25,7 +26,7 @@ export default function VocabularyPage() {
   const handleRemoveWord = async (wordId: string) => {
     const result = await removeWord(wordId);
     if (result.success) {
-      setWords(words.filter((word) => word.id !== wordId));
+      setWords(words.filter((word) => word._id !== wordId));
     } else {
       // Handle error
       console.error(result.error);

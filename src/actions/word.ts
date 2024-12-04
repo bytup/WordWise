@@ -4,10 +4,38 @@ import { connectToMongoDB } from "@/lib/mongoose";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 import { revalidatePath } from "next/cache";
-import Word from "@/models/Word";
+import WordModel from "@/models/Word";
 import User from "@/models/User";
+import { WordResponse, WordsResponse, IWord } from "@/types";
+import { Document, Model } from "mongoose";
 
-export async function getDailyWord() {
+// Import the model interface
+interface IWordMethods {
+  incrementUsage(): Promise<void>;
+}
+
+interface IWordModel extends Model<IWord, {}, IWordMethods> {
+  getRandomByDifficulty(
+    difficulty?: "easy" | "medium" | "hard"
+  ): Promise<(Document & IWord & IWordMethods) | null>;
+}
+
+// Cast the model to the correct type
+// @ts-ignore: Mongoose model typing issue
+const Word = WordModel as IWordModel;
+
+type MongoDoc<T> = Document & T;
+
+function serializeWord(word: MongoDoc<IWord> & { _id: any }): IWord {
+  return {
+    ...word.toObject(),
+    _id: word._id.toString(),
+    createdAt: word.createdAt,
+    updatedAt: word.updatedAt,
+  };
+}
+
+export async function getDailyWord(): Promise<WordResponse> {
   try {
     await connectToMongoDB();
     const session = await getServerSession(authOptions);
@@ -17,20 +45,13 @@ export async function getDailyWord() {
       throw new Error("Not authenticated");
     }
 
-    // Get a random word - in production, you might want to implement
-    // a more sophisticated selection algorithm
-    const word = await Word.findOne().lean();
+    const word = await Word.getRandomByDifficulty();
     if (!word) {
       throw new Error("No word found");
     }
 
-    // Convert MongoDB _id to string to make it serializable
-    const serializedWord = {
-      ...word,
-      _id: word._id.toString(),
-    };
-
-    return { success: true, word: serializedWord };
+    await word.incrementUsage();
+    return { success: true, word: serializeWord(word) };
   } catch (error) {
     console.error("Error getting daily word:", error);
     return { success: false, error: "Failed to get daily word" };
@@ -39,7 +60,7 @@ export async function getDailyWord() {
 
 export async function getWordsByDifficulty(
   difficulty: "easy" | "medium" | "hard"
-) {
+): Promise<WordsResponse> {
   try {
     await connectToMongoDB();
     const session = await getServerSession(authOptions);
@@ -50,14 +71,9 @@ export async function getWordsByDifficulty(
 
     const words = await Word.find({ difficulty })
       .sort({ usageCount: -1 })
-      .limit(10)
-      .lean();
+      .limit(10);
 
-    // Convert MongoDB _id to string for each word
-    const serializedWords = words.map((word) => ({
-      ...word,
-      _id: word._id.toString(),
-    }));
+    const serializedWords = words.map((word) => serializeWord(word));
 
     return { success: true, words: serializedWords };
   } catch (error) {
@@ -66,7 +82,7 @@ export async function getWordsByDifficulty(
   }
 }
 
-export async function getSavedWords() {
+export async function getSavedWords(): Promise<WordsResponse> {
   try {
     await connectToMongoDB();
     const session = await getServerSession(authOptions);
@@ -82,13 +98,9 @@ export async function getSavedWords() {
 
     const words = await Word.find({
       _id: { $in: user.savedWords },
-    }).lean();
+    });
 
-    // Convert MongoDB _id to string for each word
-    const serializedWords = words.map((word) => ({
-      ...word,
-      _id: word._id.toString(),
-    }));
+    const serializedWords = words.map((word) => serializeWord(word));
 
     return { success: true, words: serializedWords };
   } catch (error) {

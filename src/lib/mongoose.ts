@@ -35,10 +35,10 @@ export async function connectToMongoDB() {
         })
         .then((mongoose) => ({
           connection: mongoose,
-        }));
+        })) as any;
     }
 
-    const conn = await global.mongoose.promise;
+    const conn = (await global.mongoose.promise) as any;
     global.mongoose.conn = conn;
 
     return conn.connection;

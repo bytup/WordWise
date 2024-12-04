@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { Quiz as QuizType } from "../data/mockData";
+import { IQuiz } from "@/types";
 
 interface QuizProps {
-  quiz: QuizType;
-  onComplete: (correct: boolean) => void;
+  quiz: IQuiz;
+  onComplete: (answer: string) => Promise<void>;
 }
 
 const Quiz: React.FC<QuizProps> = ({ quiz, onComplete }) => {
@@ -11,12 +11,12 @@ const Quiz: React.FC<QuizProps> = ({ quiz, onComplete }) => {
   const [showExplanation, setShowExplanation] = useState(false);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const correct =
       selectedAnswer.toLowerCase() === quiz.correctAnswer.toLowerCase();
     setIsCorrect(correct);
     setShowExplanation(true);
-    onComplete(correct);
+    await onComplete(selectedAnswer);
   };
 
   const renderQuizContent = () => {

@@ -1,8 +1,8 @@
-import React, { useState } from "react";
-import { Word } from "../data/mockData";
+import React from "react";
+import { IWord } from "@/types";
 
 interface PersonalVocabularyListProps {
-  words: Word[];
+  words: IWord[];
   onRemoveWord: (wordId: string) => void;
 }
 
@@ -10,112 +10,104 @@ const PersonalVocabularyList: React.FC<PersonalVocabularyListProps> = ({
   words,
   onRemoveWord,
 }) => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all");
-
-  const filteredWords = words.filter((word) => {
-    const matchesSearch =
-      word.word.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      word.definition.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesDifficulty =
-      selectedDifficulty === "all" || word.difficulty === selectedDifficulty;
-    return matchesSearch && matchesDifficulty;
-  });
+  if (words.length === 0) {
+    return (
+      <div className="text-center text-gray-500">
+        <p>No saved words yet. Start saving words to build your vocabulary!</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6 max-w-4xl mx-auto">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">
-          My Vocabulary List
-        </h2>
-
-        <div className="flex gap-4 flex-wrap">
-          <div className="flex-1 min-w-[200px]">
-            <input
-              type="text"
-              placeholder="Search words..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
+    <div className="space-y-4">
+      {words.map((word) => (
+        <div
+          key={word._id}
+          className="bg-white rounded-lg shadow-lg p-6 transition-transform hover:scale-[1.02]"
+        >
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h3 className="text-2xl font-bold text-gray-800">{word.word}</h3>
+              <p className="text-gray-600 italic">{word.pronunciation}</p>
+            </div>
+            <button
+              onClick={() => onRemoveWord(word._id)}
+              className="text-red-500 hover:text-red-600"
+            >
+              Remove
+            </button>
           </div>
 
-          <select
-            value={selectedDifficulty}
-            onChange={(e) => setSelectedDifficulty(e.target.value)}
-            className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="all">All Difficulties</option>
-            <option value="easy">Easy</option>
-            <option value="medium">Medium</option>
-            <option value="hard">Hard</option>
-          </select>
-        </div>
-      </div>
+          <div className="space-y-4">
+            <div>
+              <h4 className="font-semibold text-gray-700">Definition</h4>
+              <p className="text-gray-600">{word.definition}</p>
+            </div>
 
-      <div className="space-y-4">
-        {filteredWords.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">
-            No words found matching your criteria.
-          </p>
-        ) : (
-          filteredWords.map((word) => (
-            <div
-              key={word.id}
-              className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-800">
-                    {word.word}
-                  </h3>
-                  <p className="text-gray-600 mt-1">{word.definition}</p>
+            <div>
+              <h4 className="font-semibold text-gray-700">Examples</h4>
+              <ul className="list-disc list-inside text-gray-600">
+                {word.examples.map((example, index) => (
+                  <li key={index}>{example}</li>
+                ))}
+              </ul>
+            </div>
 
-                  <div className="flex gap-2 mt-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <h4 className="font-semibold text-gray-700">Synonyms</h4>
+                <div className="flex flex-wrap gap-2">
+                  {word.synonyms.map((synonym, index) => (
                     <span
-                      className={`
-                      px-2 py-1 rounded-full text-sm
-                      ${
-                        word.difficulty === "easy"
-                          ? "bg-green-100 text-green-700"
-                          : word.difficulty === "medium"
-                          ? "bg-yellow-100 text-yellow-700"
-                          : "bg-red-100 text-red-700"
-                      }
-                    `}
+                      key={index}
+                      className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-sm"
                     >
-                      {word.difficulty.charAt(0).toUpperCase() +
-                        word.difficulty.slice(1)}
+                      {synonym}
                     </span>
-                  </div>
+                  ))}
                 </div>
-
-                <button
-                  onClick={() => onRemoveWord(word.id)}
-                  className="text-red-500 hover:text-red-600"
-                >
-                  Remove
-                </button>
               </div>
 
-              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                <div>
-                  <span className="text-gray-500">Synonyms: </span>
-                  <span className="text-gray-700">
-                    {word.synonyms.join(", ")}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Antonyms: </span>
-                  <span className="text-gray-700">
-                    {word.antonyms.join(", ")}
-                  </span>
+              <div>
+                <h4 className="font-semibold text-gray-700">Antonyms</h4>
+                <div className="flex flex-wrap gap-2">
+                  {word.antonyms.map((antonym, index) => (
+                    <span
+                      key={index}
+                      className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-sm"
+                    >
+                      {antonym}
+                    </span>
+                  ))}
                 </div>
               </div>
             </div>
-          ))
-        )}
-      </div>
+
+            <div>
+              <h4 className="font-semibold text-gray-700">Origin</h4>
+              <p className="text-gray-600">{word.origin}</p>
+            </div>
+
+            <div className="mt-4">
+              <span
+                className={`
+                px-3 py-1 rounded-full text-sm
+                ${
+                  word.difficulty === "easy"
+                    ? "bg-green-100 text-green-700"
+                    : word.difficulty === "medium"
+                    ? "bg-yellow-100 text-yellow-700"
+                    : "bg-red-100 text-red-700"
+                }
+              `}
+              >
+                {word.difficulty.charAt(0).toUpperCase() +
+                  word.difficulty.slice(1)}
+              </span>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 };

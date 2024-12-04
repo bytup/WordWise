@@ -3,10 +3,8 @@ import { connectToMongoDB } from "../lib/mongoose";
 import Word from "../models/Word";
 import Quiz from "../models/Quiz";
 import User from "../models/User";
-import { IWord } from "../models/Word";
-import { IQuiz } from "../models/Quiz";
 
-export const words: Partial<IWord>[] = [
+export const words: Partial<any>[] = [
   {
     word: "serendipity",
     definition:
@@ -50,7 +48,7 @@ export const words: Partial<IWord>[] = [
   },
 ];
 
-export const quizzes: Partial<IQuiz>[] = [
+export const quizzes: Partial<any>[] = [
   {
     type: "multiple-choice",
     question: "What is the meaning of 'serendipity'?",

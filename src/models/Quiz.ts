@@ -1,21 +1,17 @@
-import mongoose, { Schema, model, models } from "mongoose";
+import mongoose, { Schema, model, models, Model } from "mongoose";
+import { IQuiz } from "@/types";
 
-export interface IQuiz extends mongoose.Document {
-  type: "multiple-choice" | "fill-blank" | "listening";
-  question: string;
-  options?: string[];
-  correctAnswer: string;
-  explanation: string;
-  wordId: mongoose.Types.ObjectId;
-  difficulty: "easy" | "medium" | "hard";
-  audioUrl?: string;
-  timesAnswered: number;
-  timesCorrect: number;
-  createdAt: Date;
-  updatedAt: Date;
+interface IQuizMethods {
+  recordAnswer(isCorrect: boolean): Promise<void>;
 }
 
-const quizSchema = new Schema<IQuiz>(
+interface IQuizModel extends Model<IQuiz, {}, IQuizMethods> {
+  getRandomByDifficulty(
+    difficulty?: "easy" | "medium" | "hard"
+  ): Promise<IQuiz | null>;
+}
+
+const quizSchema = new Schema<IQuiz, IQuizModel, IQuizMethods>(
   {
     type: {
       type: String,
@@ -89,4 +85,4 @@ quizSchema.virtual("successRate").get(function () {
   return (this.timesCorrect / this.timesAnswered) * 100;
 });
 
-export default models.Quiz || model<IQuiz>("Quiz", quizSchema);
+export default models.Quiz || model<IQuiz, IQuizModel>("Quiz", quizSchema);

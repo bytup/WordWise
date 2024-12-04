@@ -3,6 +3,7 @@ import { User } from "../data/mockData";
 
 interface UserProgressProps {
   user: User;
+  quizStats: any;
 }
 
 const UserProgress: React.FC<UserProgressProps> = ({ user }) => {

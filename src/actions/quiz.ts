@@ -1,13 +1,44 @@
 "use server";
 
 import { connectToMongoDB } from "@/lib/mongoose";
-import Quiz from "@/models/Quiz";
+import QuizModel from "@/models/Quiz";
 import User from "@/models/User";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 import { revalidatePath } from "next/cache";
+import { QuizResponse, QuizStatsResponse, IQuiz } from "@/types";
+import { Document, Model } from "mongoose";
 
-export async function getRandomQuiz(difficulty?: "easy" | "medium" | "hard") {
+// Import the model interface
+interface IQuizMethods {
+  recordAnswer(isCorrect: boolean): Promise<void>;
+}
+
+interface IQuizModel extends Model<IQuiz, {}, IQuizMethods> {
+  getRandomByDifficulty(
+    difficulty?: "easy" | "medium" | "hard"
+  ): Promise<(Document & IQuiz & IQuizMethods) | null>;
+}
+
+// Cast the model to the correct type
+// @ts-ignore: Mongoose model typing issue
+const Quiz = QuizModel as IQuizModel;
+
+type MongoDoc<T> = Document & T;
+
+function serializeQuiz(quiz: MongoDoc<IQuiz> & { _id: any }): IQuiz {
+  return {
+    ...quiz.toObject(),
+    _id: quiz._id.toString(),
+    wordId: quiz.wordId,
+    createdAt: quiz.createdAt,
+    updatedAt: quiz.updatedAt,
+  };
+}
+
+export async function getRandomQuiz(
+  difficulty?: "easy" | "medium" | "hard"
+): Promise<QuizResponse> {
   try {
     await connectToMongoDB();
     const session = await getServerSession(authOptions);
@@ -21,14 +52,17 @@ export async function getRandomQuiz(difficulty?: "easy" | "medium" | "hard") {
       throw new Error("No quiz found");
     }
 
-    return { success: true, quiz };
+    return { success: true, quiz: serializeQuiz(quiz) };
   } catch (error) {
     console.error("Error getting random quiz:", error);
     return { success: false, error: "Failed to get quiz" };
   }
 }
 
-export async function submitQuizAnswer(quizId: string, answer: string) {
+export async function submitQuizAnswer(
+  quizId: string,
+  answer: string
+): Promise<{ success: boolean; error?: string; isCorrect?: boolean }> {
   try {
     await connectToMongoDB();
     const session = await getServerSession(authOptions);
@@ -62,7 +96,6 @@ export async function submitQuizAnswer(quizId: string, answer: string) {
     return {
       success: true,
       isCorrect,
-      explanation: quiz.explanation,
     };
   } catch (error) {
     console.error("Error submitting quiz answer:", error);
@@ -70,7 +103,7 @@ export async function submitQuizAnswer(quizId: string, answer: string) {
   }
 }
 
-export async function getQuizStats() {
+export async function getQuizStats(): Promise<QuizStatsResponse> {
   try {
     await connectToMongoDB();
     const session = await getServerSession(authOptions);
@@ -85,17 +118,16 @@ export async function getQuizStats() {
       .sort({ successRate: -1 })
       .limit(10);
 
-    return {
-      success: true,
-      stats: quizzes.map((quiz) => ({
-        id: quiz._id,
-        question: quiz.question,
-        type: quiz.type,
-        difficulty: quiz.difficulty,
-        timesAnswered: quiz.timesAnswered,
-        successRate: quiz.successRate,
-      })),
-    };
+    const stats = quizzes.map((quiz) => ({
+      id: quiz._id.toString(),
+      question: quiz.question,
+      type: quiz.type,
+      difficulty: quiz.difficulty,
+      timesAnswered: quiz.timesAnswered,
+      successRate: quiz.get("successRate"),
+    }));
+
+    return { success: true, stats };
   } catch (error) {
     console.error("Error getting quiz stats:", error);
     return { success: false, error: "Failed to get quiz stats" };

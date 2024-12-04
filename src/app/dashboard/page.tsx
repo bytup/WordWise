@@ -19,7 +19,7 @@ export default function DashboardPage() {
       if (result.success) {
         setWord(result.word);
       } else {
-        setError(result.error);
+        setError(result.error as any);
       }
     };
 

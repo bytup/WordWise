@@ -1,21 +1,17 @@
-import mongoose, { Schema, model, models } from "mongoose";
+import mongoose, { Schema, model, models, Model } from "mongoose";
+import { IWord } from "@/types";
 
-export interface IWord extends mongoose.Document {
-  word: string;
-  definition: string;
-  pronunciation: string;
-  audioUrl: string;
-  examples: string[];
-  origin: string;
-  synonyms: string[];
-  antonyms: string[];
-  difficulty: "easy" | "medium" | "hard";
-  usageCount: number;
-  createdAt: Date;
-  updatedAt: Date;
+interface IWordMethods {
+  incrementUsage(): Promise<void>;
 }
 
-const wordSchema = new Schema<IWord>(
+interface IWordModel extends Model<IWord, {}, IWordMethods> {
+  getRandomByDifficulty(
+    difficulty?: "easy" | "medium" | "hard"
+  ): Promise<IWord | null>;
+}
+
+const wordSchema = new Schema<IWord, IWordModel, IWordMethods>(
   {
     word: {
       type: String,
@@ -87,4 +83,4 @@ wordSchema.statics.getRandomByDifficulty = async function (
   return this.findOne(query).skip(random);
 };
 
-export default models.Word || model<IWord>("Word", wordSchema);
+export default models.Word || model<IWord, IWordModel>("Word", wordSchema);
