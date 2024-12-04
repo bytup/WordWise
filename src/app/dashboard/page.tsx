@@ -3,34 +3,53 @@
 import { useEffect, useState } from "react";
 import DailyWord from "@/components/DailyWord";
 import { getDailyWord } from "@/actions/word";
-import { saveWord } from "@/actions/user";
+import { saveWord, getUserProgress } from "@/actions/user";
 import { seedDatabaseAction } from "@/actions/seed";
 import { useSession } from "next-auth/react";
+import { IWord } from "@/types";
 
 export default function DashboardPage() {
-  const [word, setWord] = useState<any>(null);
+  const [word, setWord] = useState<IWord | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
+  const [savedWords, setSavedWords] = useState<string[]>([]);
   const { data: session } = useSession();
 
   useEffect(() => {
-    const fetchWord = async () => {
-      const result = await getDailyWord();
-      if (result.success) {
-        setWord(result.word);
-      } else {
-        setError(result.error as any);
+    const fetchData = async () => {
+      try {
+        // Fetch user progress to get saved words
+        const progressResult = await getUserProgress();
+        if (progressResult.success && progressResult.progress) {
+          setSavedWords(progressResult.progress.savedWords);
+        }
+
+        // Fetch daily word
+        const wordResult = await getDailyWord();
+        if (wordResult.success && wordResult.word) {
+          setWord(wordResult.word);
+        } else {
+          setError(wordResult.error || "Failed to fetch word");
+        }
+      } catch (error) {
+        setError("An error occurred while fetching data");
+        console.error(error);
       }
     };
 
-    fetchWord();
+    fetchData();
   }, []);
 
   const handleSaveWord = async (wordId: string) => {
-    const result = await saveWord(wordId);
-    if (!result.success) {
-      // Handle error
-      console.error(result.error);
+    try {
+      const result = await saveWord(wordId);
+      if (result.success && result.savedWords) {
+        setSavedWords(result.savedWords);
+      } else {
+        console.error(result.error);
+      }
+    } catch (error) {
+      console.error("Error saving word:", error);
     }
   };
 
@@ -53,8 +72,7 @@ export default function DashboardPage() {
   };
 
   // Only show seed button for test users
-  //   const showSeedButton = session?.user?.email?.endsWith("@example.com");
-  const showSeedButton = false;
+  const showSeedButton = session?.user?.email?.endsWith("@example.com");
 
   if (error) {
     return (
@@ -85,7 +103,13 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {word && <DailyWord word={word} onSaveWord={handleSaveWord} />}
+      {word && (
+        <DailyWord
+          word={word}
+          onSaveWord={handleSaveWord}
+          isSaved={savedWords.includes(word._id)}
+        />
+      )}
 
       {!word && !error && (
         <div className="text-center">

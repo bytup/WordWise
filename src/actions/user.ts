@@ -6,7 +6,13 @@ import User from "@/models/User";
 import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 import { revalidatePath } from "next/cache";
 
-export async function saveWord(wordId: string) {
+interface SaveWordResponse {
+  success: boolean;
+  error?: string;
+  savedWords?: string[];
+}
+
+export async function saveWord(wordId: string): Promise<SaveWordResponse> {
   try {
     await connectToMongoDB();
     const session = await getServerSession(authOptions);
@@ -15,6 +21,20 @@ export async function saveWord(wordId: string) {
       throw new Error("Not authenticated");
     }
 
+    // Check if word is already saved
+    const existingUser = await User.findOne({
+      email: session.user.email,
+      savedWords: wordId,
+    });
+
+    if (existingUser) {
+      return {
+        success: false,
+        error: "Word is already saved",
+      };
+    }
+
+    // Add word to user's saved words
     const user = await User.findOneAndUpdate(
       { email: session.user.email },
       { $addToSet: { savedWords: wordId } },
@@ -26,14 +46,22 @@ export async function saveWord(wordId: string) {
     }
 
     revalidatePath("/dashboard");
-    return { success: true, savedWords: user.savedWords };
+    revalidatePath("/dashboard/vocabulary");
+
+    return {
+      success: true,
+      savedWords: user.savedWords,
+    };
   } catch (error) {
     console.error("Error saving word:", error);
-    return { success: false, error: "Failed to save word" };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to save word",
+    };
   }
 }
 
-export async function removeWord(wordId: string) {
+export async function removeWord(wordId: string): Promise<SaveWordResponse> {
   try {
     await connectToMongoDB();
     const session = await getServerSession(authOptions);
@@ -53,10 +81,18 @@ export async function removeWord(wordId: string) {
     }
 
     revalidatePath("/dashboard");
-    return { success: true, savedWords: user.savedWords };
+    revalidatePath("/dashboard/vocabulary");
+
+    return {
+      success: true,
+      savedWords: user.savedWords,
+    };
   } catch (error) {
     console.error("Error removing word:", error);
-    return { success: false, error: "Failed to remove word" };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to remove word",
+    };
   }
 }
 

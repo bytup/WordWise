@@ -1,21 +1,48 @@
-import React from "react";
-import { Word } from "../data/mockData";
+import React, { useState } from "react";
+import { IWord } from "@/types";
 
 interface DailyWordProps {
-  word: Word;
-  onSaveWord: (wordId: string) => void;
+  word: IWord;
+  onSaveWord: (wordId: string) => Promise<void>;
+  isSaved?: boolean;
 }
 
-const DailyWord: React.FC<DailyWordProps> = ({ word, onSaveWord }) => {
+const DailyWord: React.FC<DailyWordProps> = ({
+  word,
+  onSaveWord,
+  isSaved = false,
+}) => {
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(isSaved);
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      await onSaveWord(word._id);
+      setSaved(true);
+    } catch (error) {
+      console.error("Error saving word:", error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-lg p-6 max-w-2xl mx-auto">
       <div className="flex justify-between items-start mb-4">
         <h2 className="text-3xl font-bold text-gray-800">{word.word}</h2>
         <button
-          onClick={() => onSaveWord(word.id)}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-full text-sm"
+          onClick={handleSave}
+          disabled={saving || saved}
+          className={`px-4 py-2 rounded-full text-sm transition-all ${
+            saved
+              ? "bg-green-100 text-green-700 cursor-not-allowed"
+              : saving
+              ? "bg-gray-100 text-gray-500 cursor-not-allowed"
+              : "bg-blue-500 hover:bg-blue-600 text-white"
+          }`}
         >
-          Save Word
+          {saved ? "Saved ✓" : saving ? "Saving..." : "Save Word"}
         </button>
       </div>
 
