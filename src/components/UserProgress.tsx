@@ -1,12 +1,66 @@
 import React from "react";
-import { User } from "../data/mockData";
+import { IQuiz } from "@/types";
 
-interface UserProgressProps {
-  user: User;
-  quizStats: any;
+interface Badge {
+  id: string;
+  name: string;
+  description: string;
+  imageUrl: string;
 }
 
-const UserProgress: React.FC<UserProgressProps> = ({ user }) => {
+interface UserProgressProps {
+  user: {
+    streak: number;
+    points: number;
+    savedWords: string[];
+    lastLoginDate: Date;
+    badges?: Badge[];
+  };
+  quizStats: Array<{
+    id: string;
+    question: string;
+    type: IQuiz["type"];
+    difficulty: IQuiz["difficulty"];
+    timesAnswered: number;
+    successRate: number;
+  }>;
+}
+
+// Mock badges data until we implement it in the backend
+const mockBadges: Badge[] = [
+  {
+    id: "1",
+    name: "Quick Learner",
+    description: "Completed first 10 quizzes",
+    imageUrl: "/badges/quick-learner.svg",
+  },
+  {
+    id: "2",
+    name: "Vocabulary Builder",
+    description: "Saved 20 words",
+    imageUrl: "/badges/vocabulary-builder.svg",
+  },
+  {
+    id: "3",
+    name: "Streak Master",
+    description: "Maintained a 7-day streak",
+    imageUrl: "/badges/streak-master.svg",
+  },
+  {
+    id: "4",
+    name: "Quiz Champion",
+    description: "Achieved 90% success rate in quizzes",
+    imageUrl: "/badges/quiz-champion.svg",
+  },
+];
+
+const UserProgress: React.FC<UserProgressProps> = ({
+  user,
+  quizStats = [],
+}) => {
+  // Use mock badges for now
+  const badges = user.badges || mockBadges;
+
   return (
     <div className="bg-white rounded-lg shadow-lg p-6 max-w-4xl mx-auto">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -65,16 +119,22 @@ const UserProgress: React.FC<UserProgressProps> = ({ user }) => {
           Earned Badges
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {user.badges.map((badge) => (
+          {badges.map((badge) => (
             <div
               key={badge.id}
               className="bg-white border border-gray-200 rounded-lg p-4 text-center hover:shadow-md transition-shadow"
             >
-              <img
-                src={badge.imageUrl}
-                alt={badge.name}
-                className="w-16 h-16 mx-auto mb-3"
-              />
+              <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center">
+                <span className="text-2xl" role="img" aria-label={badge.name}>
+                  {badge.id === "1"
+                    ? "🎯"
+                    : badge.id === "2"
+                    ? "📚"
+                    : badge.id === "3"
+                    ? "🔥"
+                    : "🏆"}
+                </span>
+              </div>
               <h4 className="font-medium text-gray-800">{badge.name}</h4>
               <p className="text-sm text-gray-600 mt-1">{badge.description}</p>
             </div>
@@ -82,7 +142,65 @@ const UserProgress: React.FC<UserProgressProps> = ({ user }) => {
         </div>
       </div>
 
-      {/* Next Milestone */}
+      {/* Quiz Performance Section */}
+      {quizStats.length > 0 && (
+        <div className="mt-8">
+          <h3 className="text-xl font-semibold text-gray-800 mb-4">
+            Quiz Performance
+          </h3>
+          <div className="space-y-4">
+            {quizStats.map((stat) => (
+              <div
+                key={stat.id}
+                className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="font-medium text-gray-800">
+                      {stat.question}
+                    </h4>
+                    <div className="flex gap-2 mt-2">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs ${
+                          stat.difficulty === "easy"
+                            ? "bg-green-100 text-green-700"
+                            : stat.difficulty === "medium"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {stat.difficulty}
+                      </span>
+                      <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs">
+                        {stat.type}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm text-gray-500">Success Rate</div>
+                    <div
+                      className={`text-lg font-bold ${
+                        stat.successRate >= 70
+                          ? "text-green-600"
+                          : stat.successRate >= 40
+                          ? "text-yellow-600"
+                          : "text-red-600"
+                      }`}
+                    >
+                      {Math.round(stat.successRate)}%
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {stat.timesAnswered} attempts
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Next Milestone Section */}
       <div className="mt-8 bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg p-6">
         <h3 className="text-lg font-semibold text-purple-800 mb-3">
           Next Milestone
@@ -111,6 +229,15 @@ const UserProgress: React.FC<UserProgressProps> = ({ user }) => {
           </p>
         </div>
       </div>
+
+      {quizStats.length === 0 && (
+        <div className="mt-8 text-center text-gray-500">
+          <p>
+            No quiz data available yet. Start taking quizzes to see your
+            performance!
+          </p>
+        </div>
+      )}
     </div>
   );
 };
