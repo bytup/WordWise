@@ -3,10 +3,11 @@
 import { signIn } from "next-auth/react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
-export default function SignIn() {
+function SignInContent() {
   const searchParams = useSearchParams();
-  const error = searchParams?.get("error");
+  const error = searchParams?.get("error") ?? null;
 
   const getErrorMessage = (errorType: string | null) => {
     if (!errorType) return null;
@@ -23,7 +24,7 @@ export default function SignIn() {
     }
   };
 
-  const errorMessage = getErrorMessage(error || null);
+  const errorMessage = getErrorMessage(error);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 flex items-center justify-center">
@@ -74,5 +75,13 @@ export default function SignIn() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense>
+      <SignInContent />
+    </Suspense>
   );
 }
