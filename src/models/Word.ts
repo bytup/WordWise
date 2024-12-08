@@ -69,7 +69,11 @@ const wordSchema = new Schema<IWord, IWordModel, IWordMethods>(
 
 // Add method to increment usage count
 wordSchema.methods.incrementUsage = async function () {
-  this.usageCount += 1;
+  if (!this.usageCount) {
+    this.usageCount = 1;
+  } else {
+    this.usageCount += 1;
+  }
   await this.save();
 };
 
