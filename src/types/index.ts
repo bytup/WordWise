@@ -5,13 +5,13 @@ export interface IWord {
   word: string;
   definition: string;
   pronunciation: string;
-  audioUrl: string;
+  audioUrl?: string;
   examples: string[];
   origin: string;
   synonyms: string[];
   antonyms: string[];
   difficulty: "easy" | "medium" | "hard";
-  usageCount: number;
+  usageCount?: number;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -96,6 +96,7 @@ export async function getSavedWords(): Promise<WordsResponse> {
       throw new Error("User not found");
     }
 
+    console.log('Saved Words: ', user.savedWords);
     const words = await Word.find({
       _id: { $in: user.savedWords },
     });

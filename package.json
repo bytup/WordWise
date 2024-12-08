@@ -11,10 +11,12 @@
   },
   "dependencies": {
     "@auth/mongodb-adapter": "^3.7.4",
+    "@google/generative-ai": "^0.21.0",
     "mongodb": "^6.11.0",
     "mongoose": "^8.8.3",
     "next": "15.0.3",
     "next-auth": "^4.24.10",
+    "openai": "^4.76.0",
     "react": "19.0.0-rc-66855b96-20241106",
     "react-dom": "19.0.0-rc-66855b96-20241106"
   },
