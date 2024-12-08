@@ -1,9 +1,12 @@
 import OpenAI from 'openai';
 import { IWord } from "@/types";
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY!);
 
 // For vocabulary training
 export async function generateRandomWord(): Promise<Partial<IWord>> {
@@ -58,73 +61,116 @@ export async function generateRandomWord(): Promise<Partial<IWord>> {
 }
 
 // For word finder game
-export async function generateGameWord(length: number = 5): Promise<string> {
+export async function generateGameWord(length: number = 5, usedWords: string[] = []): Promise<string> {
   try {
-    const startTime = Date.now();
-    const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content: "You are a word game API. Return only a single word in uppercase, no explanation or additional text."
-        },
-        {
-          role: "user",
-          content: `Generate a random ${length}-letter English word suitable for a word-finding game.
+    const prompt = `Generate a ${length}-letter word for a word-guessing game.
+
 Requirements:
-- Exactly ${length} letters long
-- Common enough to be guessable
-- Single word (no spaces/hyphens)
-- Only letters (A-Z)
-- Must be a real English word
-Return ONLY the word in uppercase.`
-        }
-      ],
-      max_tokens: 10,
-      temperature: 0.7,
-    });
+- Word must be exactly ${length} letters long
+- Must be a common English word that children would know
+- Must be a single word (no spaces or hyphens)
+- Must be appropriate for children
+- Must NOT be any of these previously used words: ${usedWords.join(', ')}
 
-    const word = completion.choices[0]?.message?.content?.trim().toUpperCase() || 'MINOR';
-    
-    const endTime = Date.now();
-    console.log(`Generated game word in ${endTime - startTime}ms:`, word);
+Return ONLY the word in uppercase letters, nothing else.`;
 
-    // Validate the word
-    if (word.length !== length || !/^[A-Z]+$/.test(word)) {
-      console.log('Invalid word generated, using fallback');
-      return 'MINOR'; // fallback word
+    // Try OpenAI first
+    try {
+      const completion = await openai.chat.completions.create({
+        messages: [
+          {
+            role: "system",
+            content: "You are a word game assistant that generates appropriate words for children's vocabulary learning."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        model: "gpt-3.5-turbo",
+        temperature: 0.7,
+        max_tokens: 10,
+      });
+
+      const word = completion.choices[0]?.message?.content?.trim().toUpperCase() || '';
+      if (word.length === length && !usedWords.includes(word)) {
+        return word;
+      }
+    } catch (error) {
+      console.error('OpenAI error:', error);
     }
 
-    return word;
+    // Fallback to Gemini if OpenAI fails or returns invalid word
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+      const result = await model.generateContent(prompt);
+      const response = result.response;
+      const text = response.text().trim().toUpperCase();
+      
+      if (text.length === length && !usedWords.includes(text)) {
+        return text;
+      }
+    } catch (error) {
+      console.error('Gemini error:', error);
+    }
+
+    // If both APIs fail, throw error
+    throw new Error('Failed to generate valid word from both APIs');
   } catch (error) {
-    console.error('Error generating game word:', error);
-    return 'MINOR'; // fallback word
+    console.error('Error generating word:', error);
+    throw error;
   }
 }
 
 // For validating game words
 export async function isValidWord(word: string): Promise<boolean> {
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content: "You are a word validation API. Respond with only 'true' or 'false'."
-        },
-        {
-          role: "user",
-          content: `Is "${word}" a valid English word? Respond with only 'true' or 'false'.`
-        }
-      ],
-      max_tokens: 10,
-      temperature: 0,
-    });
+    const prompt = `Is "${word}" a valid English word? Respond with only "YES" or "NO".`;
 
-    const response = completion.choices[0]?.message?.content?.trim().toLowerCase();
-    return response === 'true';
+    // Try OpenAI first
+    try {
+      const completion = await openai.chat.completions.create({
+        messages: [
+          {
+            role: "system",
+            content: "You are a word validation assistant that checks if words are valid English words."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        model: "gpt-3.5-turbo",
+        temperature: 0,
+        max_tokens: 10,
+      });
+
+      const response = completion.choices[0]?.message?.content?.trim().toUpperCase();
+      if (response === 'YES' || response === 'NO') {
+        return response === 'YES';
+      }
+    } catch (error) {
+      console.error('OpenAI validation error:', error);
+    }
+
+    // Fallback to Gemini
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+      const result = await model.generateContent(prompt);
+      const response = result.response;
+      const text = response.text().trim().toUpperCase();
+      
+      if (text === 'YES' || text === 'NO') {
+        return text === 'YES';
+      }
+    } catch (error) {
+      console.error('Gemini validation error:', error);
+    }
+
+    // If both APIs fail, assume word is valid to not block gameplay
+    return true;
   } catch (error) {
     console.error('Error validating word:', error);
-    return true; // Allow the word if validation fails
+    return true;
   }
 }

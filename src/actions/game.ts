@@ -8,12 +8,13 @@ export type GameWordResponse = {
   error?: string;
 };
 
-export async function getGameWord(length: number = 5): Promise<GameWordResponse> {
+export async function getGameWord(length: number = 5, usedWords: string[] = []): Promise<GameWordResponse> {
   try {
-    const word = await generateGameWord(length);
+    const word = await generateGameWord(length, usedWords);
     
     // Log for development/monitoring (not visible to client)
     console.log('Generated new game word:', word);
+    console.log('Total unique words used:', usedWords.length + 1);
     
     // Revalidate the game page
     revalidatePath('/game');
@@ -23,7 +24,7 @@ export async function getGameWord(length: number = 5): Promise<GameWordResponse>
     console.error('Error in getGameWord:', error);
     return {
       word: 'MINOR', // Fallback word
-      error: 'Failed to generate word. Using fallback word.'
+      error: 'Failed to generate a unique word. Using fallback word.'
     };
   }
 }
