@@ -18,6 +18,7 @@ type GameState = {
   targetWord: string;
   gameStatus: 'playing' | 'won' | 'lost';
   isLoading: boolean;
+  keyStates: { [key: string]: 'correct' | 'present' | 'absent' | null };
 };
 
 export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFinderProps) {
@@ -29,7 +30,8 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
     currentCol: 0,
     targetWord: '',
     gameStatus: 'playing',
-    isLoading: false
+    isLoading: false,
+    keyStates: {}
   });
 
   const startNewGame = async () => {
@@ -45,7 +47,8 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
         currentCol: 0,
         targetWord: word,
         gameStatus: 'playing',
-        isLoading: false
+        isLoading: false,
+        keyStates: {}
       });
     } catch (error) {
       console.error('Error starting new game:', error);
@@ -106,6 +109,7 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
 
     const newBoard = [...gameState.board];
     const letterCount: { [key: string]: number } = {};
+    const newKeyStates = { ...gameState.keyStates };
     
     // Count letters in target word
     for (const letter of gameState.targetWord) {
@@ -117,6 +121,7 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
       if (currentWord[i] === gameState.targetWord[i]) {
         newBoard[gameState.currentRow][i].state = 'correct';
         letterCount[currentWord[i]]--;
+        newKeyStates[currentWord[i]] = 'correct';
       }
     }
 
@@ -126,8 +131,14 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
         if (letterCount[currentWord[i]] > 0) {
           newBoard[gameState.currentRow][i].state = 'present';
           letterCount[currentWord[i]]--;
+          if (newKeyStates[currentWord[i]] !== 'correct') {
+            newKeyStates[currentWord[i]] = 'present';
+          }
         } else {
           newBoard[gameState.currentRow][i].state = 'absent';
+          if (!newKeyStates[currentWord[i]]) {
+            newKeyStates[currentWord[i]] = 'absent';
+          }
         }
       }
     }
@@ -140,8 +151,54 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
       board: newBoard,
       currentRow: prev.currentRow + 1,
       currentCol: 0,
-      gameStatus: isWon ? 'won' : isLost ? 'lost' : 'playing'
+      gameStatus: isWon ? 'won' : isLost ? 'lost' : 'playing',
+      keyStates: newKeyStates
     }));
+  };
+
+  const renderKeyboard = () => {
+    const rows = [
+      ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+      ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+      ['Enter', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', '⌫']
+    ];
+
+    const getKeyColor = (key: string) => {
+      const state = gameState.keyStates[key];
+      switch (state) {
+        case 'correct':
+          return 'bg-green-500 text-white border-green-600';
+        case 'present':
+          return 'bg-yellow-500 text-white border-yellow-600';
+        case 'absent':
+          return 'bg-gray-400 text-white border-gray-500';
+        default:
+          return 'bg-gray-200 hover:bg-gray-300 active:bg-gray-400';
+      }
+    };
+
+    return (
+      <div className="mt-8">
+        {rows.map((row, i) => (
+          <div key={i} className="flex justify-center gap-1 my-1">
+            {row.map((key) => (
+              <button
+                key={key}
+                onClick={() => handleKeyPress(key === '⌫' ? 'Backspace' : key)}
+                className={`
+                  ${key === 'Enter' || key === '⌫' ? 'px-4' : 'px-3'} 
+                  py-4 rounded font-bold text-sm
+                  ${key.length === 1 ? getKeyColor(key) : 'bg-gray-200 hover:bg-gray-300 active:bg-gray-400'}
+                  transition-colors duration-150
+                `}
+              >
+                {key}
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
   };
 
   useEffect(() => {
@@ -201,6 +258,9 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
           </button>
         </div>
       )}
+
+      {/* Virtual Keyboard */}
+      {renderKeyboard()}
     </div>
   );
 }
