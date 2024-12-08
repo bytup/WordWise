@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getGameWord } from '@/actions/game';
 import type { GameWordDetails } from '@/lib/openai';
+import { soundManager } from '@/lib/sounds';
 
 const LOCAL_STORAGE_KEY = 'wordwise_played_words';
 
@@ -75,6 +76,10 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  const [isSoundMuted, setIsSoundMuted] = useState(() => 
+    typeof window !== 'undefined' ? soundManager.isMuted() : false
+  );
+
   const startNewGame = async () => {
     setGameState(prev => ({ ...prev, isLoading: true, error: undefined }));
     try {
@@ -127,78 +132,69 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
   const handleKeyPress = (key: string) => {
     if (gameState.gameStatus !== 'playing') return;
 
+    if (key === 'Backspace') {
+      if (gameState.currentCol > 0) {
+        soundManager.play('keyPress');
+        setGameState(prev => {
+          const newBoard = [...prev.board];
+          newBoard[prev.currentRow][prev.currentCol - 1] = { letter: '', state: 'empty' };
+          return {
+            ...prev,
+            board: newBoard,
+            currentCol: prev.currentCol - 1
+          };
+        });
+      }
+      return;
+    }
+
     if (key === 'Enter') {
-      handleEnter();
-    } else if (key === 'Backspace') {
-      handleBackspace();
-    } else if (/^[A-Za-z]$/.test(key) && gameState.currentCol < wordLength) {
-      handleLetter(key.toUpperCase());
+      if (gameState.currentCol === wordLength) {
+        checkWord();
+      }
+      return;
+    }
+
+    if (key.length === 1 && /^[A-Z]$/i.test(key)) {
+      if (gameState.currentCol < wordLength) {
+        soundManager.play('keyPress');
+        setGameState(prev => {
+          const newBoard = [...prev.board];
+          newBoard[prev.currentRow][prev.currentCol] = { letter: key.toUpperCase(), state: 'empty' };
+          return {
+            ...prev,
+            board: newBoard,
+            currentCol: prev.currentCol + 1
+          };
+        });
+      }
     }
   };
 
-  const handleLetter = (letter: string) => {
-    if (gameState.currentCol >= wordLength) return;
-
-    const newBoard = [...gameState.board];
-    newBoard[gameState.currentRow][gameState.currentCol] = {
-      letter,
-      state: 'empty'
-    };
-
-    setGameState(prev => ({
-      ...prev,
-      board: newBoard,
-      currentCol: prev.currentCol + 1
-    }));
-  };
-
-  const handleBackspace = () => {
-    if (gameState.currentCol === 0) return;
-
-    const newBoard = [...gameState.board];
-    newBoard[gameState.currentRow][gameState.currentCol - 1] = {
-      letter: '',
-      state: 'empty'
-    };
-
-    setGameState(prev => ({
-      ...prev,
-      board: newBoard,
-      currentCol: prev.currentCol - 1
-    }));
-  };
-
-  const handleEnter = () => {
-    if (gameState.currentCol !== wordLength) return;
-
+  const checkWord = () => {
     const currentWord = gameState.board[gameState.currentRow]
       .map(cell => cell.letter)
       .join('');
-
-    const newBoard = [...gameState.board];
-    const letterCount: { [key: string]: number } = {};
-    const newKeyStates = { ...gameState.keyStates };
     
-    // Count letters in target word
-    for (const letter of gameState.targetWord) {
-      letterCount[letter] = (letterCount[letter] || 0) + 1;
-    }
+    const newBoard = [...gameState.board];
+    const newKeyStates = { ...gameState.keyStates };
+    let allCorrect = true;
 
     // First pass: mark correct letters
     for (let i = 0; i < wordLength; i++) {
       if (currentWord[i] === gameState.targetWord[i]) {
         newBoard[gameState.currentRow][i].state = 'correct';
-        letterCount[currentWord[i]]--;
         newKeyStates[currentWord[i]] = 'correct';
+      } else {
+        allCorrect = false;
       }
     }
 
-    // Second pass: mark present/absent letters
+    // Second pass: mark present letters
     for (let i = 0; i < wordLength; i++) {
       if (currentWord[i] !== gameState.targetWord[i]) {
-        if (letterCount[currentWord[i]] > 0) {
+        if (gameState.targetWord.includes(currentWord[i])) {
           newBoard[gameState.currentRow][i].state = 'present';
-          letterCount[currentWord[i]]--;
           if (newKeyStates[currentWord[i]] !== 'correct') {
             newKeyStates[currentWord[i]] = 'present';
           }
@@ -211,17 +207,31 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
       }
     }
 
-    const isWon = currentWord === gameState.targetWord;
-    const isLost = !isWon && gameState.currentRow === maxAttempts - 1;
-
-    setGameState(prev => ({
-      ...prev,
-      board: newBoard,
-      currentRow: prev.currentRow + 1,
-      currentCol: 0,
-      gameStatus: isWon ? 'won' : isLost ? 'lost' : 'playing',
-      keyStates: newKeyStates
-    }));
+    if (allCorrect) {
+      setTimeout(() => soundManager.play('win'), 500);
+      setGameState(prev => ({
+        ...prev,
+        board: newBoard,
+        keyStates: newKeyStates,
+        gameStatus: 'won'
+      }));
+    } else if (gameState.currentRow === maxAttempts - 1) {
+      setTimeout(() => soundManager.play('lose'), 500);
+      setGameState(prev => ({
+        ...prev,
+        board: newBoard,
+        keyStates: newKeyStates,
+        gameStatus: 'lost'
+      }));
+    } else {
+      setGameState(prev => ({
+        ...prev,
+        board: newBoard,
+        keyStates: newKeyStates,
+        currentRow: prev.currentRow + 1,
+        currentCol: 0
+      }));
+    }
   };
 
   const renderKeyboard = () => {
@@ -298,7 +308,7 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
   return (
     <div className="flex flex-col items-center gap-4 p-4">
       {/* Game Controls */}
-      <div className="flex gap-4 mb-4">
+      <div className="flex gap-4 mb-4 items-center">
         <motion.button
           onClick={clearPlayedWords}
           className="px-4 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 active:bg-blue-700 disabled:bg-gray-400"
@@ -313,6 +323,28 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
             Refresh Words
           </div>
         </motion.button>
+        
+        {/* Sound Toggle */}
+        <motion.button
+          onClick={() => {
+            const newMuted = soundManager.toggleMute();
+            setIsSoundMuted(newMuted);
+          }}
+          className="p-2 rounded-full hover:bg-gray-100"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+        >
+          {isSoundMuted ? (
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clipRule="evenodd" />
+            </svg>
+          )}
+        </motion.button>
+        
         <motion.div 
           className="text-sm text-gray-600"
           initial={{ opacity: 0 }}
