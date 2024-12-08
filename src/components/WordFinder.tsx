@@ -92,6 +92,18 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
     }
   };
 
+  const clearPlayedWords = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+      setGameState(prev => ({
+        ...prev,
+        playedWords: [],
+        error: undefined
+      }));
+      startNewGame();
+    }
+  };
+
   const handleKeyPress = (key: string) => {
     if (gameState.gameStatus !== 'playing') return;
 
@@ -265,6 +277,32 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
 
   return (
     <div className="flex flex-col items-center gap-4 p-4">
+      {/* Game Controls */}
+      <div className="flex gap-4 mb-4">
+        <motion.button
+          onClick={clearPlayedWords}
+          className="px-4 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 active:bg-blue-700 disabled:bg-gray-400"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          disabled={gameState.isLoading}
+        >
+          <div className="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+            </svg>
+            Refresh Words
+          </div>
+        </motion.button>
+        <motion.div 
+          className="text-sm text-gray-600"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          {gameState.playedWords.length} words played
+        </motion.div>
+      </div>
+
       {/* Error Message */}
       <AnimatePresence>
         {gameState.error && (

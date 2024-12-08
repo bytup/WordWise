@@ -67,7 +67,7 @@ export async function generateGameWord(length: number = 5, usedWords: string[] =
 
 Requirements:
 - Word must be exactly ${length} letters long
-- Must be a common English word that children would know
+- Must be a common English word that children would know [Indian Kids]
 - Must be a single word (no spaces or hyphens)
 - Must be appropriate for children
 - Must NOT be any of these previously used words: ${usedWords.join(', ')}
