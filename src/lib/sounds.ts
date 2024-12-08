@@ -5,20 +5,21 @@ class SoundManager {
   private muted: boolean = false;
 
   private constructor() {
-    // Initialize sounds
-    this.sounds = {
-      keyPress: new Audio('/sounds/key-press.mp3'),
-      win: new Audio('/sounds/win.mp3'),
-      lose: new Audio('/sounds/lose.mp3'),
-    };
-
-    // Set volume for all sounds
-    Object.values(this.sounds).forEach(sound => {
-      sound.volume = 0.5;
-    });
-
-    // Load mute preference from localStorage
+    // Only initialize sounds in browser environment
     if (typeof window !== 'undefined') {
+      // Initialize sounds
+      this.sounds = {
+        keyPress: new window.Audio('/sounds/key-press.mp3'),
+        win: new window.Audio('/sounds/win.mp3'),
+        lose: new window.Audio('/sounds/lose.mp3'),
+      };
+
+      // Set volume for all sounds
+      Object.values(this.sounds).forEach(sound => {
+        sound.volume = 0.5;
+      });
+
+      // Load mute preference from localStorage
       this.muted = localStorage.getItem('wordwise_sound_muted') === 'true';
     }
   }
@@ -31,22 +32,20 @@ class SoundManager {
   }
 
   public play(soundName: keyof typeof this.sounds) {
-    if (this.muted || typeof window === 'undefined') return;
+    if (!this.sounds[soundName] || this.muted || typeof window === 'undefined') return;
 
     const sound = this.sounds[soundName];
-    if (sound) {
-      sound.currentTime = 0; // Reset to start
-      sound.play().catch(error => {
-        console.error('Error playing sound:', error);
-      });
-    }
+    sound.currentTime = 0; // Reset to start
+    sound.play().catch(error => {
+      console.error('Error playing sound:', error);
+    });
   }
 
   public toggleMute() {
+    if (typeof window === 'undefined') return false;
+    
     this.muted = !this.muted;
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('wordwise_sound_muted', this.muted.toString());
-    }
+    localStorage.setItem('wordwise_sound_muted', this.muted.toString());
     return this.muted;
   }
 

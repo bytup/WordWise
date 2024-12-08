@@ -311,7 +311,7 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
       <div className="flex gap-4 mb-4 items-center">
         <motion.button
           onClick={clearPlayedWords}
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 active:bg-blue-700 disabled:bg-gray-400"
+          className="px-4 py-2 bg-blue-500 text-sm text-white rounded-lg font-semibold hover:bg-blue-600 active:bg-blue-700 disabled:bg-gray-400"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           disabled={gameState.isLoading}
