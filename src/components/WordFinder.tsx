@@ -61,6 +61,20 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
 
   const [showWordModal, setShowWordModal] = useState(false);
 
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check if device is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768 || 'ontouchstart' in window);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   const startNewGame = async () => {
     setGameState(prev => ({ ...prev, isLoading: true, error: undefined }));
     try {
@@ -484,15 +498,17 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
         )}
       </AnimatePresence>
 
-      {/* Virtual Keyboard */}
-      <motion.div
-        className="mt-8"
-        initial={{ opacity: 0, y: 50 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-      >
-        {renderKeyboard()}
-      </motion.div>
+      {/* Virtual Keyboard - Hidden on mobile */}
+      {!isMobile && (
+        <motion.div
+          className="mt-8"
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          {renderKeyboard()}
+        </motion.div>
+      )}
     </div>
   );
 }
