@@ -60,10 +60,19 @@ export async function generateRandomWord(): Promise<Partial<IWord>> {
   }
 }
 
+export type GameWordDetails = {
+  word: string;
+  meaning: string;
+  example: string;
+  funFact?: string;
+  difficulty: 'Easy' | 'Medium' | 'Hard';
+  category: string;
+};
+
 // For word finder game
-export async function generateGameWord(length: number = 5, usedWords: string[] = []): Promise<string> {
+export async function generateGameWord(length: number = 5, usedWords: string[] = []): Promise<GameWordDetails> {
   try {
-    const prompt = `Generate a ${length}-letter word for a word-guessing game.
+    const prompt = `Generate a ${length}-letter word and its details for a word-guessing game.
 
 Requirements:
 - Word must be exactly ${length} letters long
@@ -72,7 +81,15 @@ Requirements:
 - Must be appropriate for children
 - Must NOT be any of these previously used words: ${usedWords.join(', ')}
 
-Return ONLY the word in uppercase letters, nothing else.`;
+Return the response in this exact JSON format:
+{
+  "word": "WORD",
+  "meaning": "Simple definition a child can understand",
+  "example": "A simple example sentence using the word",
+  "funFact": "An interesting fact about the word or its usage in India",
+  "difficulty": "Easy/Medium/Hard",
+  "category": "Subject category (e.g., Science, Nature, Daily Life)"
+}`;
 
     // Try OpenAI first
     try {
@@ -80,7 +97,7 @@ Return ONLY the word in uppercase letters, nothing else.`;
         messages: [
           {
             role: "system",
-            content: "You are a word game assistant that generates appropriate words for children's vocabulary learning."
+            content: "You are a word game assistant that generates appropriate words for Indian children's vocabulary learning."
           },
           {
             role: "user",
@@ -89,12 +106,16 @@ Return ONLY the word in uppercase letters, nothing else.`;
         ],
         model: "gpt-3.5-turbo",
         temperature: 0.7,
-        max_tokens: 10,
+        max_tokens: 200,
       });
 
-      const word = completion.choices[0]?.message?.content?.trim().toUpperCase() || '';
-      if (word.length === length && !usedWords.includes(word)) {
-        return word;
+      const response = completion.choices[0]?.message?.content;
+      if (response) {
+        const wordDetails = JSON.parse(response) as GameWordDetails;
+        if (wordDetails.word.length === length && !usedWords.includes(wordDetails.word)) {
+          wordDetails.word = wordDetails.word.toUpperCase();
+          return wordDetails;
+        }
       }
     } catch (error) {
       console.error('OpenAI error:', error);
@@ -105,10 +126,12 @@ Return ONLY the word in uppercase letters, nothing else.`;
       const model = genAI.getGenerativeModel({ model: "gemini-pro" });
       const result = await model.generateContent(prompt);
       const response = result.response;
-      const text = response.text().trim().toUpperCase();
+      const text = response.text();
       
-      if (text.length === length && !usedWords.includes(text)) {
-        return text;
+      const wordDetails = JSON.parse(text) as GameWordDetails;
+      if (wordDetails.word.length === length && !usedWords.includes(wordDetails.word)) {
+        wordDetails.word = wordDetails.word.toUpperCase();
+        return wordDetails;
       }
     } catch (error) {
       console.error('Gemini error:', error);

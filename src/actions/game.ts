@@ -2,28 +2,35 @@
 
 import { generateGameWord, isValidWord } from '@/lib/openai';
 import { revalidatePath } from 'next/cache';
+import type { GameWordDetails } from '@/lib/openai';
 
 export type GameWordResponse = {
-  word: string;
+  word: GameWordDetails;
   error?: string;
 };
 
 export async function getGameWord(length: number = 5, usedWords: string[] = []): Promise<GameWordResponse> {
   try {
-    const word = await generateGameWord(length, usedWords);
+    const wordDetails = await generateGameWord(length, usedWords);
     
     // Log for development/monitoring (not visible to client)
-    console.log('Generated new game word:', word);
+    console.log('Generated new game word:', wordDetails.word);
     console.log('Total unique words used:', usedWords.length + 1);
     
     // Revalidate the game page
     revalidatePath('/game');
     
-    return { word };
+    return { word: wordDetails };
   } catch (error) {
     console.error('Error in getGameWord:', error);
     return {
-      word: 'MINOR', // Fallback word
+      word: {
+        word: 'MINOR',
+        meaning: 'Small or lesser in importance',
+        example: 'It was a minor problem that was easily fixed.',
+        difficulty: 'Easy',
+        category: 'Common Words',
+      },
       error: 'Failed to generate a unique word. Using fallback word.'
     };
   }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getGameWord } from '@/actions/game';
+import type { GameWordDetails } from '@/lib/openai';
 
 const LOCAL_STORAGE_KEY = 'wordwise_played_words';
 
@@ -24,6 +25,7 @@ type GameState = {
   keyStates: { [key: string]: 'correct' | 'present' | 'absent' | null };
   error?: string;
   playedWords: string[];
+  currentWordDetails?: GameWordDetails;
 };
 
 export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFinderProps) {
@@ -45,7 +47,8 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
       isLoading: false,
       keyStates: {},
       error: undefined,
-      playedWords
+      playedWords,
+      currentWordDetails: undefined
     };
   });
 
@@ -56,15 +59,17 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
     }
   }, [gameState.playedWords]);
 
+  const [showWordModal, setShowWordModal] = useState(false);
+
   const startNewGame = async () => {
     setGameState(prev => ({ ...prev, isLoading: true, error: undefined }));
     try {
-      const { word, error } = await getGameWord(wordLength, gameState.playedWords);
-      if (error) {
+      const response = await getGameWord(wordLength, gameState.playedWords);
+      if (response.error) {
         setGameState(prev => ({ 
           ...prev, 
           isLoading: false,
-          error
+          error: response.error
         }));
         return;
       }
@@ -75,12 +80,13 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
         ),
         currentRow: 0,
         currentCol: 0,
-        targetWord: word,
+        targetWord: response.word.word,
+        currentWordDetails: response.word,
         gameStatus: 'playing',
         isLoading: false,
         keyStates: {},
         error: undefined,
-        playedWords: [...prev.playedWords, word]
+        playedWords: [...prev.playedWords, response.word.word]
       }));
     } catch (error) {
       console.error('Error starting new game:', error);
@@ -331,7 +337,7 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
             {row.map((cell, colIndex) => (
               <motion.div
                 key={`${rowIndex}-${colIndex}`}
-                className={`w-14 h-14 flex items-center justify-center text-2xl font-bold border-2 
+                className={`relative w-14 h-14 flex items-center justify-center text-2xl font-bold border-2 
                   ${cell.state === 'correct' ? 'bg-green-500 text-white border-green-600' :
                     cell.state === 'present' ? 'bg-yellow-500 text-white border-yellow-600' :
                     cell.state === 'absent' ? 'bg-gray-400 text-white border-gray-500' :
@@ -349,11 +355,97 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
                 >
                   {cell.letter}
                 </motion.span>
+                {/* Info Icon only when word is guessed correctly */}
+                {gameState.gameStatus === 'won' && 
+                 rowIndex === gameState.currentRow - 1 && // Only on the winning row
+                 cell.state === 'correct' && 
+                 colIndex === wordLength - 1 && // Only on the last letter
+                 gameState.currentWordDetails && (
+                  <motion.button
+                    className="absolute -right-3 -top-3 bg-blue-500 rounded-full p-1 text-white shadow-lg"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setShowWordModal(true)}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </motion.button>
+                )}
               </motion.div>
             ))}
           </motion.div>
         ))}
       </div>
+
+      {/* Word Details Modal */}
+      <AnimatePresence>
+        {showWordModal && gameState.currentWordDetails && (
+          <motion.div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowWordModal(false)}
+          >
+            <motion.div
+              className="bg-white rounded-lg p-6 max-w-md w-full space-y-4"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-800">
+                  {gameState.currentWordDetails.word}
+                </h2>
+                <span className={`px-2 py-1 rounded text-sm font-semibold
+                  ${gameState.currentWordDetails.difficulty === 'Easy' ? 'bg-green-100 text-green-800' :
+                    gameState.currentWordDetails.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-red-100 text-red-800'}`}
+                >
+                  {gameState.currentWordDetails.difficulty}
+                </span>
+              </div>
+              
+              <div className="space-y-3">
+                <div>
+                  <h3 className="font-semibold text-gray-700">Meaning</h3>
+                  <p className="text-gray-600">{gameState.currentWordDetails.meaning}</p>
+                </div>
+                
+                <div>
+                  <h3 className="font-semibold text-gray-700">Example</h3>
+                  <p className="text-gray-600 italic">"{gameState.currentWordDetails.example}"</p>
+                </div>
+                
+                {gameState.currentWordDetails.funFact && (
+                  <div>
+                    <h3 className="font-semibold text-gray-700">Fun Fact</h3>
+                    <p className="text-gray-600">{gameState.currentWordDetails.funFact}</p>
+                  </div>
+                )}
+                
+                <div>
+                  <h3 className="font-semibold text-gray-700">Category</h3>
+                  <p className="text-gray-600">{gameState.currentWordDetails.category}</p>
+                </div>
+              </div>
+
+              <motion.button
+                className="w-full mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setShowWordModal(false)}
+              >
+                Close
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Game Status and New Game Button */}
       <AnimatePresence>
