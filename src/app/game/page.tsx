@@ -17,23 +17,26 @@ const DEFAULT_SETTINGS: GameSettings = {
 };
 
 export default function GamePage() {
-  const [showSettings, setShowSettings] = useState(false);
-  const [settings, setSettings] = useState<GameSettings>(DEFAULT_SETTINGS);
-  const [isNewGame, setIsNewGame] = useState(false);
-
-  // Load settings from localStorage on mount
-  useEffect(() => {
-    const savedSettings = localStorage.getItem('wordwise_settings');
-    if (savedSettings) {
-      setSettings(JSON.parse(savedSettings));
+  const [settings, setSettings] = useState<GameSettings>(() => {
+    if (typeof window !== 'undefined') {
+      const savedSettings = localStorage.getItem('wordwise_settings');
+      return savedSettings ? JSON.parse(savedSettings) : DEFAULT_SETTINGS;
     }
-  }, []);
+    return DEFAULT_SETTINGS;
+  });
+  const [resetKey, setResetKey] = useState(0);
+  const [showSettings, setShowSettings] = useState(false);
 
-  // Save settings to localStorage whenever they change
-  const updateSettings = (newSettings: Partial<GameSettings>) => {
-    const updatedSettings = { ...settings, ...newSettings };
-    setSettings(updatedSettings);
-    localStorage.setItem('wordwise_settings', JSON.stringify(updatedSettings));
+  // Update settings and save to localStorage
+  const updateSettings = (newSettings: GameSettings) => {
+    setSettings(newSettings);
+    localStorage.setItem('wordwise_settings', JSON.stringify(newSettings));
+  };
+
+  // Handle applying settings and restarting game
+  const handleApplySettings = (newSettings: GameSettings) => {
+    updateSettings(newSettings);
+    setResetKey(prev => prev + 1);
   };
 
   return (
@@ -81,9 +84,9 @@ export default function GamePage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             </motion.button>
-            {/* Pass isNewGame to trigger reset when settings change */}
+            {/* Pass resetKey to trigger reset only on apply */}
             <WordFinder 
-              key={isNewGame ? 'new' : 'current'} 
+              key={resetKey} 
               wordLength={settings.wordLength} 
               maxAttempts={settings.maxAttempts} 
             />
@@ -133,7 +136,7 @@ export default function GamePage() {
                     {[4, 5, 6, 7, 8].map((length) => (
                       <button
                         key={length}
-                        onClick={() => updateSettings({ wordLength: length })}
+                        onClick={() => updateSettings({ ...settings, wordLength: length })}
                         className={`flex-1 py-2 px-3 rounded-lg font-semibold transition-all ${
                           settings.wordLength === length
                             ? "bg-blue-500 text-white"
@@ -155,7 +158,7 @@ export default function GamePage() {
                     {[4, 5, 6, 7, 8].map((attempts) => (
                       <button
                         key={attempts}
-                        onClick={() => updateSettings({ maxAttempts: attempts })}
+                        onClick={() => updateSettings({ ...settings, maxAttempts: attempts })}
                         className={`flex-1 py-2 px-3 rounded-lg font-semibold transition-all ${
                           settings.maxAttempts === attempts
                             ? "bg-blue-500 text-white"
@@ -178,8 +181,8 @@ export default function GamePage() {
                   </button>
                   <button
                     onClick={() => {
+                      handleApplySettings(settings);
                       setShowSettings(false);
-                      setIsNewGame(prev => !prev); // Toggle to force component reset
                     }}
                     className="flex-1 py-2 px-4 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-all"
                   >
