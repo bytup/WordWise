@@ -235,54 +235,50 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
   };
 
   const renderKeyboard = () => {
-    const rows = [
+    const keyboardLayout = [
       ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
       ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-      ['Enter', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', '⌫']
+      ['Enter', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Backspace'],
     ];
 
-    const getKeyColor = (key: string) => {
-      const state = gameState.keyStates[key];
-      switch (state) {
-        case 'correct':
-          return 'bg-green-500 text-white border-green-600';
-        case 'present':
-          return 'bg-yellow-500 text-white border-yellow-600';
-        case 'absent':
-          return 'bg-gray-400 text-white border-gray-500';
-        default:
-          return 'bg-gray-200 hover:bg-gray-300 active:bg-gray-400';
-      }
-    };
-
     return (
-      <div className="mt-8">
-        {rows.map((row, i) => (
-          <div key={i} className="flex justify-center gap-1 my-1">
-            {row.map((key) => (
-              <motion.button
-                key={key}
-                onClick={() => handleKeyPress(key === '⌫' ? 'Backspace' : key)}
-                className={`
-                  ${key === 'Enter' || key === '⌫' ? 'px-4' : 'px-3'} 
-                  py-4 rounded font-bold text-sm
-                  ${key.length === 1 ? getKeyColor(key) : 'bg-gray-200 hover:bg-gray-300 active:bg-gray-400'}
-                  transition-colors duration-150
-                `}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  delay: i * 0.1 + (row.indexOf(key) * 0.05),
-                  type: "spring",
-                  stiffness: 300,
-                  damping: 20
-                }}
-              >
-                {key}
-              </motion.button>
-            ))}
+      <div className="w-full max-w-3xl mx-auto">
+        {keyboardLayout.map((row, rowIndex) => (
+          <div key={rowIndex} className="flex justify-center gap-1 mb-1">
+            {row.map((key) => {
+              const isSpecialKey = key === 'Enter' || key === 'Backspace';
+              const keyState = gameState.keyStates[key] || 'unused';
+              
+              return (
+                <motion.button
+                  key={key}
+                  onClick={() => handleKeyPress(key)}
+                  className={`
+                    ${isSpecialKey ? 'px-3 sm:px-4' : 'px-2 sm:px-3'} 
+                    py-3 sm:py-4 
+                    rounded 
+                    font-semibold 
+                    text-sm sm:text-base
+                    transition-colors
+                    ${keyState === 'correct' ? 'bg-green-500 text-white' :
+                      keyState === 'present' ? 'bg-yellow-500 text-white' :
+                      keyState === 'absent' ? 'bg-gray-400 text-white' :
+                      'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }
+                    ${isSpecialKey ? 'flex-grow-0 flex-shrink-0' : ''}
+                    touch-manipulation
+                  `}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  {key === 'Backspace' ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M6.707 4.879A3 3 0 018.828 4H15a3 3 0 013 3v6a3 3 0 01-3 3H8.828a3 3 0 01-2.12-.879l-4.415-4.414a1 1 0 010-1.414l4.414-4.414zm4.586 6.414a1 1 0 00-1.414 0L8.586 12.586a1 1 0 001.414 1.414L11.293 13l1.293 1.293a1 1 0 001.414-1.414L12.707 13l1.293-1.293a1 1 0 000-1.414z" clipRule="evenodd" />
+                    </svg>
+                  ) : key}
+                </motion.button>
+              );
+            })}
           </div>
         ))}
       </div>
@@ -371,7 +367,7 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
       </AnimatePresence>
 
       {/* Game Board */}
-      <div className="grid gap-1">
+      <div className="grid gap-1 mb-4">
         {gameState.board.map((row, rowIndex) => (
           <motion.div
             key={rowIndex}
@@ -425,6 +421,16 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
           </motion.div>
         ))}
       </div>
+
+      {/* Virtual Keyboard */}
+      <motion.div
+        className="w-full mt-4"
+        initial={{ opacity: 0, y: 50 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
+        {renderKeyboard()}
+      </motion.div>
 
       {/* Word Details Modal */}
       <AnimatePresence>
@@ -529,18 +535,6 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Virtual Keyboard - Hidden on mobile */}
-      {!isMobile && (
-        <motion.div
-          className="mt-8"
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          {renderKeyboard()}
-        </motion.div>
-      )}
     </div>
   );
 }
