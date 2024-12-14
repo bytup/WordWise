@@ -16,6 +16,14 @@ interface CellState {
   state: 'empty' | 'correct' | 'present' | 'absent';
 }
 
+type ClueLevel = 'small' | 'medium' | 'large';
+
+interface ClueInfo {
+  level: ClueLevel;
+  text: string;
+  percentage: number;
+}
+
 type GameState = {
   board: CellState[][];
   currentRow: number;
@@ -27,6 +35,14 @@ type GameState = {
   error?: string;
   playedWords: string[];
   currentWordDetails?: GameWordDetails;
+  clue: ClueInfo | null;
+  hasAttempted: boolean;
+};
+
+const CLUE_LEVELS: { [key in ClueLevel]: number } = {
+  small: 20,
+  medium: 40,
+  large: 60,
 };
 
 export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFinderProps) {
@@ -49,7 +65,9 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
       keyStates: {},
       error: undefined,
       playedWords,
-      currentWordDetails: undefined
+      currentWordDetails: undefined,
+      clue: null,
+      hasAttempted: false,
     };
   });
 
@@ -105,7 +123,9 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
         isLoading: false,
         keyStates: {},
         error: undefined,
-        playedWords: [...prev.playedWords, response.word.word]
+        playedWords: [...prev.playedWords, response.word.word],
+        clue: null,
+        hasAttempted: false,
       }));
     } catch (error) {
       console.error('Error starting new game:', error);
@@ -229,7 +249,45 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
         board: newBoard,
         keyStates: newKeyStates,
         currentRow: prev.currentRow + 1,
-        currentCol: 0
+        currentCol: 0,
+        hasAttempted: true,
+      }));
+    }
+  };
+
+  const getClue = async (level: ClueLevel) => {
+    if (!gameState.currentWordDetails || !gameState.hasAttempted) return;
+
+    try {
+      const response = await fetch('/api/get-clue', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          word: gameState.currentWordDetails.word,
+          definition: gameState.currentWordDetails.definition,
+          level,
+          percentage: CLUE_LEVELS[level],
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to get clue');
+      
+      const clueData = await response.json();
+      setGameState(prev => ({
+        ...prev,
+        clue: {
+          level,
+          text: clueData.clue,
+          percentage: CLUE_LEVELS[level],
+        },
+      }));
+    } catch (error) {
+      console.error('Error getting clue:', error);
+      setGameState(prev => ({
+        ...prev,
+        error: 'Failed to get clue. Please try again.',
       }));
     }
   };
@@ -304,52 +362,64 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
   return (
     <div className="flex flex-col items-center gap-4 p-4">
       {/* Game Controls */}
-      <div className="flex gap-4 mb-4 items-center">
-        <motion.button
-          onClick={clearPlayedWords}
-          className="px-4 py-2 bg-blue-500 text-sm text-white rounded-lg font-semibold hover:bg-blue-600 active:bg-blue-700 disabled:bg-gray-400"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          disabled={gameState.isLoading}
-        >
-          <div className="flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-            </svg>
-            Refresh Words
-          </div>
-        </motion.button>
-        
-        {/* Sound Toggle */}
-        <motion.button
-          onClick={() => {
-            const newMuted = soundManager.toggleMute();
-            setIsSoundMuted(newMuted);
-          }}
-          className="p-2 rounded-full hover:bg-gray-100"
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-        >
-          {isSoundMuted ? (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-          ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clipRule="evenodd" />
-            </svg>
+      <div className="w-full max-w-lg flex justify-between items-center mb-4">
+        <div className="flex gap-2">
+          {gameState.hasAttempted && (
+            <div className="flex gap-2">
+              <motion.button
+                onClick={() => getClue('small')}
+                className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium hover:bg-green-200 transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                Small Clue
+              </motion.button>
+              <motion.button
+                onClick={() => getClue('medium')}
+                className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-medium hover:bg-yellow-200 transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                Medium Clue
+              </motion.button>
+              <motion.button
+                onClick={() => getClue('large')}
+                className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-medium hover:bg-orange-200 transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                Large Clue
+              </motion.button>
+            </div>
           )}
-        </motion.button>
-        
-        <motion.div 
-          className="text-sm text-gray-600"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-        >
-          {gameState.playedWords.length} words played
-        </motion.div>
+        </div>
       </div>
+
+      {/* Clue Display */}
+      {gameState.clue && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-lg mb-4 p-4 bg-blue-50 rounded-lg"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <span className={`
+              px-2 py-1 rounded-full text-xs font-medium
+              ${gameState.clue.level === 'small' ? 'bg-green-100 text-green-700' :
+                gameState.clue.level === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                'bg-orange-100 text-orange-700'}
+            `}>
+              {gameState.clue.level.charAt(0).toUpperCase() + gameState.clue.level.slice(1)} Clue
+            </span>
+            <span className="text-xs text-gray-500">
+              {gameState.clue.percentage}% info
+            </span>
+          </div>
+          <p className="text-blue-800 font-medium">
+            {gameState.clue.text}
+          </p>
+        </motion.div>
+      )}
 
       {/* Error Message */}
       <AnimatePresence>
