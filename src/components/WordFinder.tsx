@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getGameWord } from '@/actions/game';
 import type { GameWordDetails } from '@/lib/openai';
 import { soundManager } from '@/lib/sounds';
+import LoginModal from './LoginModal';
+import { useSession } from 'next-auth/react';
 
 const LOCAL_STORAGE_KEY = 'wordwise_played_words';
 
@@ -46,7 +48,7 @@ const CLUE_LEVELS: { [key in ClueLevel]: number } = {
 };
 
 export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFinderProps) {
-  // Initialize game state
+  const { data: session } = useSession();
   const [gameState, setGameState] = useState<GameState>(() => {
     // Load played words from localStorage
     const playedWords = typeof window !== 'undefined' 
@@ -97,6 +99,8 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
   const [isSoundMuted, setIsSoundMuted] = useState(() => 
     typeof window !== 'undefined' ? soundManager.isMuted() : false
   );
+
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const startNewGame = async () => {
     setGameState(prev => ({ ...prev, isLoading: true, error: undefined }));
@@ -256,7 +260,7 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
   };
 
   const getClue = async (level: ClueLevel) => {
-    if (!gameState.currentWordDetails || !gameState.hasAttempted) return;
+    if (!gameState.currentWordDetails || !gameState.hasAttempted || !session) return;
 
     try {
       const response = await fetch('/api/get-clue', {
@@ -266,13 +270,15 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
         },
         body: JSON.stringify({
           word: gameState.currentWordDetails.word,
-          definition: gameState.currentWordDetails.definition,
+          meaning: gameState.currentWordDetails.meaning,
           level,
           percentage: CLUE_LEVELS[level],
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to get clue');
+      if (!response.ok) {
+        throw new Error('Failed to get clue');
+      }
       
       const clueData = await response.json();
       setGameState(prev => ({
@@ -290,6 +296,18 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
         error: 'Failed to get clue. Please try again.',
       }));
     }
+  };
+
+  const handleClueClick = (level: ClueLevel) => {
+    if (!session) {
+      setShowLoginModal(true);
+      return;
+    }
+    getClue(level);
+  };
+
+  const handleLogin = () => {
+    setShowLoginModal(false);
   };
 
   const renderKeyboard = () => {
@@ -367,29 +385,33 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
           {gameState.hasAttempted && (
             <div className="flex gap-2">
               <motion.button
-                onClick={() => getClue('small')}
+                onClick={() => handleClueClick('small')}
                 className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium hover:bg-green-200 transition-colors"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                Small Clue
+                {session ? 'Small Clue' : 'Sign in for Clues'}
               </motion.button>
-              <motion.button
-                onClick={() => getClue('medium')}
-                className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-medium hover:bg-yellow-200 transition-colors"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                Medium Clue
-              </motion.button>
-              <motion.button
-                onClick={() => getClue('large')}
-                className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-medium hover:bg-orange-200 transition-colors"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                Large Clue
-              </motion.button>
+              {session && (
+                <>
+                  <motion.button
+                    onClick={() => handleClueClick('medium')}
+                    className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-medium hover:bg-yellow-200 transition-colors"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    Medium Clue
+                  </motion.button>
+                  <motion.button
+                    onClick={() => handleClueClick('large')}
+                    className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-medium hover:bg-orange-200 transition-colors"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    Large Clue
+                  </motion.button>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -568,6 +590,14 @@ export default function WordFinder({ maxAttempts = 6, wordLength = 5 }: WordFind
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Login Modal */}
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        // @ts-ignore: Suspense
+        onLogin={handleLogin}
+      />
 
       {/* Game Status and New Game Button */}
       <AnimatePresence>

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { getServerSession } from 'next-auth/next';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -7,10 +8,19 @@ const openai = new OpenAI({
 
 export async function POST(request: Request) {
   try {
-    const { word, definition, level, percentage } = await request.json();
+    // Check authentication
+    const session = await getServerSession();
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const { word, meaning, level, percentage } = await request.json();
 
     const prompt = `
-      I need a clue for the word "${word}". The word's definition is: "${definition}".
+      I need a clue for the word "${word}". The word's meaning is: "${meaning}".
       Please provide a clue that reveals approximately ${percentage}% of the information about the word.
       The clue should be a single sentence that helps guess the word without directly giving it away.
       For a ${level} clue, make it ${level === 'small' ? 'subtle and vague' : level === 'medium' ? 'moderately helpful' : 'quite revealing but not obvious'}.

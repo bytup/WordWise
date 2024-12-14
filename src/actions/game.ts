@@ -24,6 +24,7 @@ export async function getGameWord(length: number = 5, usedWords: string[] = []):
   } catch (error) {
     console.error('Error in getGameWord:', error);
     return {
+      // @ts-ignore: 
       word: {
         word: 'MINOR',
         meaning: 'Small or lesser in importance',

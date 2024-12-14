@@ -60,14 +60,24 @@ export async function generateRandomWord(): Promise<Partial<IWord>> {
   }
 }
 
-export type GameWordDetails = {
+export interface GameWordDetails {
   word: string;
+  definition: string;
+  partOfSpeech: string;
+  synonyms: string[];
+  antonyms: string[];
+  examples: string[];
   meaning: string;
   example: string;
   funFact?: string;
   difficulty: 'Easy' | 'Medium' | 'Hard';
   category: string;
 };
+
+export interface GameWord {
+  word: GameWordDetails;
+  error?: string;
+}
 
 // For word finder game
 export async function generateGameWord(length: number = 5, usedWords: string[] = []): Promise<GameWordDetails> {
@@ -84,6 +94,11 @@ Requirements:
 Return the response in this exact JSON format:
 {
   "word": "WORD",
+  "definition": "Definition of the word",
+  "partOfSpeech": "Part of speech (noun, verb, adjective, etc.)",
+  "synonyms": ["Synonym1", "Synonym2"],
+  "antonyms": ["Antonym1", "Antonym2"],
+  "examples": ["Example sentence 1", "Example sentence 2"],
   "meaning": "Simple definition a child can understand",
   "example": "A simple example sentence using the word",
   "funFact": "An interesting fact about the word or its usage in India",
