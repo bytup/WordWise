@@ -24,6 +24,8 @@ export default function GamePage() {
     }
     return DEFAULT_SETTINGS;
   });
+ 
+
   const [resetKey, setResetKey] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -206,3 +208,6 @@ export default function GamePage() {
     </div>
   );
 }
+
+
+  

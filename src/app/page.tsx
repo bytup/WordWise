@@ -44,7 +44,7 @@ export default function Home() {
                 {session ? "Go to Dashboard" : "Start Learning Free"}
               </button>
               <Link
-                href="/game"
+                href="/instruction"
                 className="bg-gradient-to-r from-emerald-400 to-teal-400 text-white px-6 md:px-8 py-3 rounded-full text-base md:text-lg font-medium hover:from-emerald-500 hover:to-teal-500 transition-all shadow-lg flex items-center justify-center gap-2 w-full sm:w-auto"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
